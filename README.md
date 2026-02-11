@@ -10,7 +10,7 @@ Window manager for React apps with:
 
 ## Version
 
-Current stable version: `0.5.2`
+Current stable version: `0.5.4`
 
 ## Installation
 
@@ -130,6 +130,26 @@ Overlay windows (stacked blurred backdrop):
 openWindow({
   component: 'ReaderWindow',
   windowProps: { overlay: true, minimizable: false }
+})
+```
+
+Content-based sizing (responsive by default when size is not hardcoded):
+
+- If `initialStatus.width` is omitted, width auto-fits content.
+- If `initialStatus.height` is omitted, height auto-fits content.
+- If either is provided, that axis stays fixed.
+- Auto-sized windows are clamped to viewport bounds and react to content changes.
+
+Example:
+
+```tsx
+openWindow({
+  component: 'SettingsWindow',
+  initialStatus: {
+    startPosition: 'center',
+    height: 480 // fixed height
+    // width omitted => auto-fit width from content
+  }
 })
 ```
 

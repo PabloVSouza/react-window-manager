@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { cn } from '../internal/cn'
 import type { WindowInstance } from '../store/types'
 import { useWindowManager } from '../WindowSystemProvider'
@@ -19,7 +19,8 @@ export function Window({ window, zIndex, children }: WindowProps) {
     setWindowMoving,
     setWindowResizing,
     setWindowMaximized,
-    setWindowMinimized
+    setWindowMinimized,
+    syncWindowContentSize
   } = useWindowManager()
 
   const {
@@ -35,6 +36,61 @@ export function Window({ window, zIndex, children }: WindowProps) {
     contentClassName,
     windowStatus
   } = window
+  const sectionRef = useRef<HTMLElement | null>(null)
+  const contentRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const sectionElement = sectionRef.current
+    const contentElement = contentRef.current
+    if (!sectionElement || !contentElement) {
+      return
+    }
+
+    let frame = 0
+
+    const measure = () => {
+      const section = sectionRef.current
+      const contentNode = contentRef.current
+      if (!section || !contentNode) {
+        return
+      }
+
+      const contentWidth = Math.ceil(contentNode.scrollWidth)
+      const contentHeight = Math.ceil(contentNode.scrollHeight)
+      const frameWidth = Math.ceil(section.offsetWidth - contentNode.clientWidth)
+      const frameHeight = Math.ceil(section.offsetHeight - contentNode.clientHeight)
+
+      syncWindowContentSize(id, {
+        width: contentWidth,
+        height: contentHeight,
+        frameWidth,
+        frameHeight
+      })
+    }
+
+    const scheduleMeasure = () => {
+      if (frame) {
+        globalThis.window.cancelAnimationFrame(frame)
+      }
+      frame = globalThis.window.requestAnimationFrame(measure)
+    }
+
+    scheduleMeasure()
+
+    const contentObserver = new ResizeObserver(scheduleMeasure)
+    contentObserver.observe(contentElement)
+
+    const sectionObserver = new ResizeObserver(scheduleMeasure)
+    sectionObserver.observe(sectionElement)
+
+    return () => {
+      if (frame) {
+        globalThis.window.cancelAnimationFrame(frame)
+      }
+      contentObserver.disconnect()
+      sectionObserver.disconnect()
+    }
+  }, [id, syncWindowContentSize, children])
 
   const style: CSSProperties = windowStatus.isMaximized
     ? {
@@ -54,6 +110,7 @@ export function Window({ window, zIndex, children }: WindowProps) {
 
   return (
     <section
+      ref={sectionRef}
       className={cn(
         'pointer-events-auto absolute flex min-h-40 min-w-56 flex-col overflow-hidden rounded-lg border border-border/70 bg-card/95 text-card-foreground shadow-xl backdrop-blur-sm',
         className
@@ -133,7 +190,9 @@ export function Window({ window, zIndex, children }: WindowProps) {
       )}
 
       <KeyboardOwnerProvider owner={id}>
-        <div className={cn('min-h-0 flex-1 overflow-auto', contentClassName)}>{children}</div>
+        <div ref={contentRef} className={cn('min-h-0 flex-1 overflow-auto', contentClassName)}>
+          {children}
+        </div>
       </KeyboardOwnerProvider>
 
       {resizable && !windowStatus.isMaximized && (

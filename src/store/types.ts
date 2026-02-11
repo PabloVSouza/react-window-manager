@@ -69,6 +69,13 @@ export type WindowInstance = {
   movable: boolean
   unique: boolean
   titleBar: boolean
+  autoSize: {
+    width: boolean
+    height: boolean
+  }
+  pendingInitialPosition: boolean
+  manualPosition: boolean
+  manualSize: boolean
   initialStatus: WindowInitialStatus & { startPosition: WindowStartPosition }
   windowStatus: WindowStatus
   originalContainerSize?: { width: number; height: number }
@@ -88,6 +95,10 @@ export type WindowManagerStore = {
   setWindowMaximized: (id: string, maximized: boolean) => void
   setWindowMoving: (id: string, moving: boolean) => void
   setWindowResizing: (id: string, resizing: boolean) => void
+  syncWindowContentSize: (
+    id: string,
+    content: { width: number; height: number; frameWidth: number; frameHeight: number }
+  ) => void
   updateWindow: (id: string, patch: Partial<WindowCreateParams>) => void
   clearWindows: () => void
 }
