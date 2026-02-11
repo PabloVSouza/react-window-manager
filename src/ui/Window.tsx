@@ -8,10 +8,11 @@ import { CloseIcon, MinusIcon, SquareIcon } from './icons'
 
 type WindowProps = {
   window: WindowInstance
+  zIndex: number
   children?: ReactNode
 }
 
-export function Window({ window, children }: WindowProps) {
+export function Window({ window, zIndex, children }: WindowProps) {
   const {
     closeWindow,
     focusWindow,
@@ -34,8 +35,6 @@ export function Window({ window, children }: WindowProps) {
     contentClassName,
     windowStatus
   } = window
-
-  const zIndex = windowStatus.isFocused ? 60 : 50
 
   const style: CSSProperties = windowStatus.isMaximized
     ? {

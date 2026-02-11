@@ -323,6 +323,7 @@ export function useWindowManagerStore(): WindowManagerStore {
           ...(patch.contentClassName !== undefined
             ? { contentClassName: patch.contentClassName }
             : {}),
+          ...(patch.overlay !== undefined ? { overlay: patch.overlay } : {}),
           ...(patch.closeable !== undefined ? { closeable: patch.closeable } : {}),
           ...(patch.maximizable !== undefined ? { maximizable: patch.maximizable } : {}),
           ...(patch.minimizable !== undefined ? { minimizable: patch.minimizable } : {}),
@@ -359,6 +360,7 @@ export function useWindowManagerStore(): WindowManagerStore {
               ...window,
               title: params.title ?? window.title,
               content: params.content,
+              overlay: params.overlay ?? window.overlay,
               closeable: params.closeable ?? window.closeable,
               className: params.className ?? window.className,
               contentClassName: params.contentClassName ?? window.contentClassName,
@@ -420,6 +422,7 @@ export function useWindowManagerStore(): WindowManagerStore {
               class: params.contentClassName ?? ''
             }
           }),
+          overlay: params.overlay ?? false,
           closeable: params.closeable ?? true,
           className: params.className,
           contentClassName: params.contentClassName,

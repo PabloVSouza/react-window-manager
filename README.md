@@ -124,6 +124,15 @@ openWindow({
 })
 ```
 
+Overlay windows (stacked blurred backdrop):
+
+```tsx
+openWindow({
+  component: 'ReaderWindow',
+  windowProps: { overlay: true, minimizable: false }
+})
+```
+
 ## Advanced usage
 
 Use `WindowSystemProvider` directly only when you want low-level control and pass registries manually:

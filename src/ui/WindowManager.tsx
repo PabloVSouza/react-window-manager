@@ -39,6 +39,15 @@ export function WindowManager() {
   const isInteracting = windows.some(
     (window) => window.windowStatus.isMoving || window.windowStatus.isResizing
   )
+  const activeWindowLayers = activeWindows.map((window, index) => {
+    const baseZIndex = 200 + index * 2
+
+    return {
+      window,
+      backdropZIndex: window.overlay ? baseZIndex : null,
+      windowZIndex: baseZIndex + 1 + (window.windowStatus.isFocused ? 1000 : 0)
+    }
+  })
 
   useEffect(() => {
     if (!isInteracting) {
@@ -80,10 +89,21 @@ export function WindowManager() {
         </InPortal>
       ))}
 
-      {activeWindows.map((window) => (
-        <Window key={window.id} window={window}>
-          <OutPortal node={window.portalNode} />
-        </Window>
+      {activeWindowLayers.map(({ window, backdropZIndex, windowZIndex }) => (
+        <div key={window.id} className="contents">
+          {window.overlay && backdropZIndex !== null && (
+            <div
+              className="pointer-events-auto absolute inset-0 bg-black/30 backdrop-blur-sm"
+              style={{ zIndex: backdropZIndex }}
+              onPointerDownCapture={() => focusWindow(window.id)}
+              onMouseDownCapture={() => focusWindow(window.id)}
+            />
+          )}
+
+          <Window window={window} zIndex={windowZIndex}>
+            <OutPortal node={window.portalNode} />
+          </Window>
+        </div>
       ))}
 
       {!!minimizedWindows.length && <MinimizedBar windows={minimizedWindows} />}

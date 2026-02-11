@@ -29,6 +29,7 @@ export type WindowCreateParams = {
   id?: string
   title?: string
   content: ReactNode
+  overlay?: boolean
   closeable?: boolean
   className?: string
   contentClassName?: string
@@ -58,6 +59,7 @@ export type WindowInstance = {
   title?: string
   content: ReactNode
   portalNode: HtmlPortalNode
+  overlay: boolean
   closeable: boolean
   className?: string
   contentClassName?: string
