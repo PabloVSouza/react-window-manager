@@ -1,5 +1,5 @@
 {
-  "name": "@comic-universe/react-window-manager",
+  "name": "react-window-manager",
   "version": "1.0.0",
   "description": "Composable window manager for React with draggable, resizable windows and scoped keyboard shortcuts.",
   "private": false,
@@ -38,9 +38,11 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "react-reverse-portal": "^2.3.0"
+  },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-reverse-portal": "^2.3.0"
+    "react-dom": "^19.0.0"
   }
 }

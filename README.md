@@ -1,4 +1,4 @@
-# @comic-universe/react-window-manager
+# react-window-manager
 
 Window manager for React apps with:
 
@@ -15,13 +15,13 @@ Current stable version: `1.0.0`
 ## Installation
 
 ```bash
-npm install @comic-universe/react-window-manager react-reverse-portal
+npm install react-window-manager
 ```
 
 Install from GitHub (pre-publish/local validation):
 
 ```bash
-npm install @comic-universe/react-window-manager@github:PabloVSouza/react-window-manager
+npm install react-window-manager@github:PabloVSouza/react-window-manager
 ```
 
 Peer dependencies:
@@ -39,7 +39,7 @@ Styling dependency:
 Wrap your app once:
 
 ```tsx
-import { WindowSystemProvider } from '@comic-universe/react-window-manager'
+import { WindowSystemProvider } from 'react-window-manager'
 
 export function AppRoot() {
   return (
@@ -53,7 +53,7 @@ export function AppRoot() {
 Define your windows as a registry:
 
 ```tsx
-import type { WindowRegistry } from '@comic-universe/react-window-manager'
+import type { WindowRegistry } from 'react-window-manager'
 import { ReaderWindow } from './ReaderWindow'
 import { SettingsWindow } from './SettingsWindow'
 
@@ -89,7 +89,7 @@ export const windows: WindowRegistry = {
 Open windows from anywhere inside the provider:
 
 ```tsx
-import { useOpenWindow } from '@comic-universe/react-window-manager'
+import { useOpenWindow } from 'react-window-manager'
 import { windows } from './windows'
 
 export function Toolbar() {
@@ -118,7 +118,7 @@ export function Toolbar() {
 Scoped shortcuts automatically follow the focused window.
 
 ```tsx
-import { useKeyboardShortcuts } from '@comic-universe/react-window-manager'
+import { useKeyboardShortcuts } from 'react-window-manager'
 
 export function ReaderWindow({ windowId }: { windowId: string }) {
   useKeyboardShortcuts({
