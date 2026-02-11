@@ -1,6 +1,7 @@
 import './styles.css'
 
 export * from './WindowSystemProvider'
+export * from './WindowProvider'
 export * from './hooks/useOpenWindow'
 export * from './shortcuts/KeyboardShortcutsProvider'
 export * from './store/types'

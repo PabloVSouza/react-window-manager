@@ -10,7 +10,7 @@ Window manager for React apps with:
 
 ## Version
 
-Current stable version: `0.5.1`
+Current stable version: `0.5.2`
 
 ## Installation
 
@@ -37,16 +37,17 @@ Styling behavior:
 
 ## Quick start
 
-Wrap your app once:
+Wrap your app once using the registry-driven provider (recommended):
 
 ```tsx
-import { WindowSystemProvider } from '@pablovsouza/react-window-manager'
+import { WindowProvider } from '@pablovsouza/react-window-manager'
+import { windows } from './windows'
 
 export function AppRoot() {
   return (
-    <WindowSystemProvider>
+    <WindowProvider registry={windows}>
       <App />
-    </WindowSystemProvider>
+    </WindowProvider>
   )
 }
 ```
@@ -91,10 +92,9 @@ Open windows from anywhere inside the provider:
 
 ```tsx
 import { useOpenWindow } from '@pablovsouza/react-window-manager'
-import { windows } from './windows'
 
 export function Toolbar() {
-  const openWindow = useOpenWindow(windows)
+  const openWindow = useOpenWindow()
 
   return (
     <>
@@ -111,6 +111,30 @@ export function Toolbar() {
       </button>
     </>
   )
+}
+```
+
+Per-call overrides are supported:
+
+```tsx
+openWindow({
+  component: 'ReaderWindow',
+  windowProps: { minimizable: false, title: 'Reader Preview' },
+  initialStatus: { startPosition: 'topRight', width: 840, height: 600 }
+})
+```
+
+## Advanced usage
+
+Use `WindowSystemProvider` directly only when you want low-level control and pass registries manually:
+
+```tsx
+import { WindowSystemProvider, useOpenWindow } from '@pablovsouza/react-window-manager'
+import { windows } from './windows'
+
+function Toolbar() {
+  const openWindow = useOpenWindow(windows)
+  return <button onClick={() => openWindow({ component: 'ReaderWindow' })}>Open</button>
 }
 ```
 
@@ -145,9 +169,11 @@ useKeyboardShortcuts({
 
 ## API summary
 
-- `WindowSystemProvider`: provides window and shortcuts contexts
+- `WindowProvider`: recommended provider (window system + registry context)
+- `WindowSystemProvider`: low-level provider without registry context
 - `useWindowManager`: low-level manager API (`openWindow`, `focusWindow`, `closeWindow`, etc.)
-- `useOpenWindow(registry)`: high-level window opener using definitions
+- `useOpenWindow()`: window opener using `WindowProvider` registry
+- `useOpenWindow(registry)`: manual registry mode for advanced usage
 - `useKeyboardShortcuts(...)`: register shortcut listeners
 - `useKeyboardShortcutsManager()`: manual owner control (`setActiveOwner`)
 - `KeyboardOwnerProvider`: explicit shortcut owner boundary
