@@ -12,6 +12,7 @@ import type {
   WindowInstance,
   WindowManagerStore,
   WindowMeasure,
+  WindowPositionAnchor,
   WindowStartPosition
 } from './types'
 
@@ -22,7 +23,8 @@ const defaultInitialStatus: WindowInitialStatus & { startPosition: WindowStartPo
   isFocused: true,
   width: 720,
   height: 480,
-  startPosition: 'center'
+  startPosition: 'center',
+  positionAnchor: 'none'
 }
 
 const MIN_WINDOW_WIDTH = 320
@@ -70,6 +72,10 @@ const isHorizontallyCentered = (startPosition: WindowStartPosition): boolean =>
 
 const isVerticallyCentered = (startPosition: WindowStartPosition): boolean =>
   startPosition === 'centerLeft' || startPosition === 'center' || startPosition === 'centerRight'
+
+const hasStartPositionAnchor = (
+  positionAnchor: WindowPositionAnchor | undefined
+): boolean => positionAnchor === 'startPosition'
 
 const resolvePositionByStart = (
   startPosition: WindowStartPosition,
@@ -131,13 +137,43 @@ export function useWindowManagerStore(): WindowManagerStore {
         }
 
         const bounds = getSizeBounds(size)
-        const width = clamp(window.windowStatus.width, bounds.minWidth, bounds.maxWidth)
-        const height = clamp(window.windowStatus.height, bounds.minHeight, bounds.maxHeight)
+        const measuredDesiredWidth = window.contentSize
+          ? Math.max(MIN_WINDOW_WIDTH, window.contentSize.width + window.contentSize.frameWidth)
+          : window.windowStatus.width
+        const measuredDesiredHeight = window.contentSize
+          ? Math.max(MIN_WINDOW_HEIGHT, window.contentSize.height + window.contentSize.frameHeight)
+          : window.windowStatus.height
+
+        const configuredWidth =
+          window.initialStatus.width !== undefined
+            ? parseMeasure(window.initialStatus.width, size.width, window.windowStatus.width)
+            : window.windowStatus.width
+        const configuredHeight =
+          window.initialStatus.height !== undefined
+            ? parseMeasure(window.initialStatus.height, size.height, window.windowStatus.height)
+            : window.windowStatus.height
+
+        const targetWidth = window.autoSize.width
+          ? measuredDesiredWidth
+          : window.manualSize
+            ? window.windowStatus.width
+            : configuredWidth
+        const targetHeight = window.autoSize.height
+          ? measuredDesiredHeight
+          : window.manualSize
+            ? window.windowStatus.height
+            : configuredHeight
+
+        const width = clamp(targetWidth, bounds.minWidth, bounds.maxWidth)
+        const height = clamp(targetHeight, bounds.minHeight, bounds.maxHeight)
         const left = window.windowStatus.left
         const top = window.windowStatus.top
+        const startPosition = window.initialStatus.startPosition || 'center'
+        const startPos = resolvePositionByStart(startPosition, width, height, size)
+        const keepAnchored =
+          !window.manualPosition && hasStartPositionAnchor(window.initialStatus.positionAnchor)
 
         if (window.pendingInitialPosition) {
-          const startPos = resolvePositionByStart(window.initialStatus.startPosition || 'center', width, height, size)
           return {
             ...window,
             pendingInitialPosition: false,
@@ -156,12 +192,42 @@ export function useWindowManagerStore(): WindowManagerStore {
           left < 0 || top < 0 || left + width > size.width || top + height > size.height
 
         if (!outOfBounds) {
+          let nextLeft = left
+          let nextTop = top
+
+          if (keepAnchored && window.initialStatus.left === undefined) {
+            nextLeft = startPos.left
+          } else if (
+            !window.manualPosition &&
+            window.initialStatus.left === undefined &&
+            window.autoSize.width &&
+            isHorizontallyCentered(startPosition)
+          ) {
+            nextLeft = nextLeft - (width - window.windowStatus.width) / 2
+          }
+
+          if (keepAnchored && window.initialStatus.top === undefined) {
+            nextTop = startPos.top
+          } else if (
+            !window.manualPosition &&
+            window.initialStatus.top === undefined &&
+            window.autoSize.height &&
+            isVerticallyCentered(startPosition)
+          ) {
+            nextTop = nextTop - (height - window.windowStatus.height) / 2
+          }
+
+          nextLeft = clamp(nextLeft, 0, Math.max(0, size.width - width))
+          nextTop = clamp(nextTop, 0, Math.max(0, size.height - height))
+
           return {
             ...window,
             windowStatus: {
               ...window.windowStatus,
               width,
-              height
+              height,
+              left: nextLeft,
+              top: nextTop
             },
             originalContainerSize: size
           }
@@ -170,7 +236,15 @@ export function useWindowManagerStore(): WindowManagerStore {
         let nextLeft = left
         let nextTop = top
 
-        if (
+        if (keepAnchored) {
+          if (window.initialStatus.left === undefined) {
+            nextLeft = startPos.left
+          }
+
+          if (window.initialStatus.top === undefined) {
+            nextTop = startPos.top
+          }
+        } else if (
           window.originalContainerSize &&
           window.originalContainerSize.width &&
           window.originalContainerSize.height
@@ -205,6 +279,8 @@ export function useWindowManagerStore(): WindowManagerStore {
           ...window,
           windowStatus: {
             ...window.windowStatus,
+            width,
+            height,
             left: nextLeft,
             top: nextTop
           },
@@ -415,6 +491,7 @@ export function useWindowManagerStore(): WindowManagerStore {
 
           return {
             ...window,
+            contentSize: content,
             windowStatus: {
               ...window.windowStatus,
               width: nextWidth,
@@ -477,6 +554,54 @@ export function useWindowManagerStore(): WindowManagerStore {
               }
             }
 
+            const nextInitialStatus = {
+              ...window.initialStatus,
+              ...(params.initialStatus || {})
+            }
+
+            const bounds = getSizeBounds(containerSize)
+            const width = clamp(
+              parseMeasure(nextInitialStatus.width, containerSize.width, window.windowStatus.width),
+              bounds.minWidth,
+              bounds.maxWidth
+            )
+            const height = clamp(
+              parseMeasure(nextInitialStatus.height, containerSize.height, window.windowStatus.height),
+              bounds.minHeight,
+              bounds.maxHeight
+            )
+
+            const startPosition = nextInitialStatus.startPosition || 'center'
+            const startPos = resolvePositionByStart(startPosition, width, height, containerSize)
+
+            const left = clamp(
+              nextInitialStatus.left !== undefined
+                ? parseMeasure(nextInitialStatus.left, containerSize.width, startPos.left)
+                : startPos.left,
+              0,
+              Math.max(0, containerSize.width - width)
+            )
+
+            const top = clamp(
+              nextInitialStatus.top !== undefined
+                ? parseMeasure(nextInitialStatus.top, containerSize.height, startPos.top)
+                : startPos.top,
+              0,
+              Math.max(0, containerSize.height - height)
+            )
+
+            const nextIsMaximized = nextInitialStatus.isMaximized ?? false
+            const nextWindowStatus = {
+              ...window.windowStatus,
+              isFocused: true,
+              isMinimized: false,
+              isMaximized: nextIsMaximized,
+              width: nextIsMaximized ? containerSize.width || window.windowStatus.width : width,
+              height: nextIsMaximized ? containerSize.height || window.windowStatus.height : height,
+              left: nextIsMaximized ? 0 : left,
+              top: nextIsMaximized ? 0 : top
+            }
+
             return {
               ...window,
               title: params.title ?? window.title,
@@ -490,11 +615,25 @@ export function useWindowManagerStore(): WindowManagerStore {
               resizable: params.resizable ?? window.resizable,
               movable: params.movable ?? window.movable,
               titleBar: params.titleBar ?? window.titleBar,
-              windowStatus: {
-                ...window.windowStatus,
-                isFocused: true,
-                isMinimized: false
-              }
+              autoSize: {
+                width: nextInitialStatus.width === undefined,
+                height: nextInitialStatus.height === undefined
+              },
+              pendingInitialPosition:
+                (nextInitialStatus.left === undefined || nextInitialStatus.top === undefined) &&
+                (!containerSize.width || !containerSize.height),
+              manualPosition: false,
+              manualSize: false,
+              initialStatus: nextInitialStatus,
+              restoreStatus: nextIsMaximized
+                ? {
+                    width: window.windowStatus.width,
+                    height: window.windowStatus.height,
+                    left: window.windowStatus.left,
+                    top: window.windowStatus.top
+                  }
+                : window.restoreStatus,
+              windowStatus: nextWindowStatus
             }
           })
         }

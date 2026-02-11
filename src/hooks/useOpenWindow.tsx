@@ -5,10 +5,20 @@ import type { WindowCreateParams, WindowInitialStatus } from '../store/types'
 
 type WindowComponent<TProps extends Record<string, unknown>> = ComponentType<TProps>
 
+export type WindowDefinitionResolveContext = {
+  viewport: {
+    width: number
+    height: number
+  }
+  isMobile: boolean
+}
+
+type Resolvable<T> = T | ((context: WindowDefinitionResolveContext) => T)
+
 export type WindowDefinition<TProps extends Record<string, unknown> = Record<string, unknown>> = {
   component: WindowComponent<TProps>
-  windowProps?: Omit<WindowCreateParams, 'id' | 'content' | 'initialStatus'>
-  initialStatus?: WindowInitialStatus
+  windowProps?: Resolvable<Omit<WindowCreateParams, 'id' | 'content' | 'initialStatus'>>
+  initialStatus?: Resolvable<WindowInitialStatus>
 }
 
 export type WindowRegistry = Record<string, WindowDefinition>
@@ -18,6 +28,17 @@ type OpenWindowParams<TKey extends string> = {
   props?: Record<string, unknown>
   windowProps?: Omit<WindowCreateParams, 'id' | 'content' | 'initialStatus'>
   initialStatus?: WindowInitialStatus
+}
+
+const resolveDefinitionValue = <T,>(
+  value: Resolvable<T> | undefined,
+  context: WindowDefinitionResolveContext
+): T | undefined => {
+  if (typeof value === 'function') {
+    return (value as (ctx: WindowDefinitionResolveContext) => T)(context)
+  }
+
+  return value
 }
 
 function generateWindowId(component: string, unique?: boolean): string {
@@ -56,12 +77,23 @@ export function useOpenWindow<TRegistry extends WindowRegistry = WindowRegistry>
         return
       }
 
+      const resolveContext: WindowDefinitionResolveContext = {
+        viewport: {
+          width: globalThis.window?.innerWidth ?? 0,
+          height: globalThis.window?.innerHeight ?? 0
+        },
+        isMobile: globalThis.window?.matchMedia?.('(max-width: 768px)').matches ?? false
+      }
+
+      const resolvedWindowProps = resolveDefinitionValue(definition.windowProps, resolveContext)
+      const resolvedInitialStatus = resolveDefinitionValue(definition.initialStatus, resolveContext)
+
       const mergedWindowProps = {
-        ...(definition.windowProps || {}),
+        ...(resolvedWindowProps || {}),
         ...(windowProps || {})
       }
       const mergedInitialStatus = {
-        ...(definition.initialStatus || {}),
+        ...(resolvedInitialStatus || {}),
         ...(initialStatus || {})
       }
       const { component: Component } = definition

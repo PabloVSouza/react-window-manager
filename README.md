@@ -10,7 +10,7 @@ Window manager for React apps with:
 
 ## Version
 
-Current stable version: `0.5.4`
+Current stable version: `0.6.0`
 
 ## Installation
 
@@ -88,6 +88,29 @@ export const windows: WindowRegistry = {
 }
 ```
 
+Definitions can also be dynamic (responsive) by using resolver functions:
+
+```tsx
+import type { WindowRegistry } from '@pablovsouza/react-window-manager'
+
+export const windows: WindowRegistry = {
+  LoginWindow: {
+    component: LoginWindow,
+    initialStatus: ({ isMobile }) =>
+      isMobile
+        ? {
+            startPosition: 'topLeft',
+            width: '100%',
+            height: '100%'
+          }
+        : {
+            startPosition: 'center',
+            width: '40%'
+          }
+  }
+}
+```
+
 Open windows from anywhere inside the provider:
 
 ```tsx
@@ -153,6 +176,12 @@ openWindow({
 })
 ```
 
+Position anchors:
+
+- `initialStatus.positionAnchor: 'none'` (default): free position after open.
+- `initialStatus.positionAnchor: 'startPosition'`: keeps the semantic anchor on container resize.
+  Example: `startPosition: 'center'` stays centered while viewport changes.
+
 ## Advanced usage
 
 Use `WindowSystemProvider` directly only when you want low-level control and pass registries manually:
@@ -212,9 +241,11 @@ Types:
 - `WindowCreateParams`
 - `WindowInitialStatus`
 - `WindowStartPosition`
+- `WindowPositionAnchor`
 - `WindowInstance`
 - `WindowRegistry`
 - `WindowDefinition`
+- `WindowDefinitionResolveContext`
 
 ## Styling
 

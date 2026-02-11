@@ -13,6 +13,7 @@ export type WindowStartPosition =
   | 'bottomRight'
 
 export type WindowMeasure = number | string
+export type WindowPositionAnchor = 'none' | 'startPosition'
 
 export type WindowInitialStatus = {
   isMaximized?: boolean
@@ -23,6 +24,7 @@ export type WindowInitialStatus = {
   left?: WindowMeasure
   top?: WindowMeasure
   startPosition?: WindowStartPosition
+  positionAnchor?: WindowPositionAnchor
 }
 
 export type WindowCreateParams = {
@@ -76,6 +78,12 @@ export type WindowInstance = {
   pendingInitialPosition: boolean
   manualPosition: boolean
   manualSize: boolean
+  contentSize?: {
+    width: number
+    height: number
+    frameWidth: number
+    frameHeight: number
+  }
   initialStatus: WindowInitialStatus & { startPosition: WindowStartPosition }
   windowStatus: WindowStatus
   originalContainerSize?: { width: number; height: number }
