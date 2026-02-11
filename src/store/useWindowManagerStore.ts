@@ -555,7 +555,7 @@ export function useWindowManagerStore(): WindowManagerStore {
             }
 
             const nextInitialStatus = {
-              ...window.initialStatus,
+              ...defaultInitialStatus,
               ...(params.initialStatus || {})
             }
 
