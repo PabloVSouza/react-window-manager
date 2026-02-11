@@ -1,4 +1,4 @@
-# react-window-manager
+# @pablovsouza/react-window-manager
 
 Window manager for React apps with:
 
@@ -10,18 +10,18 @@ Window manager for React apps with:
 
 ## Version
 
-Current stable version: `0.5.0`
+Current stable version: `0.5.1`
 
 ## Installation
 
 ```bash
-npm install react-window-manager
+npm install @pablovsouza/react-window-manager
 ```
 
 Install from GitHub (pre-publish/local validation):
 
 ```bash
-npm install react-window-manager@github:PabloVSouza/react-window-manager
+npm install @pablovsouza/react-window-manager@github:PabloVSouza/react-window-manager
 ```
 
 Peer dependencies:
@@ -29,17 +29,18 @@ Peer dependencies:
 - `react@^19`
 - `react-dom@^19`
 
-Styling dependency:
+Styling behavior:
 
-- This package uses Tailwind-style utility classes in its components.
-- Your app should provide compatible styling (typically Tailwind CSS + your design tokens/theme variables).
+- The package builds and ships its own CSS (`dist/styles.css`).
+- CSS is auto-loaded when you import the package entrypoint.
+- No host Tailwind source scanning is required for the window manager UI.
 
 ## Quick start
 
 Wrap your app once:
 
 ```tsx
-import { WindowSystemProvider } from 'react-window-manager'
+import { WindowSystemProvider } from '@pablovsouza/react-window-manager'
 
 export function AppRoot() {
   return (
@@ -53,7 +54,7 @@ export function AppRoot() {
 Define your windows as a registry:
 
 ```tsx
-import type { WindowRegistry } from 'react-window-manager'
+import type { WindowRegistry } from '@pablovsouza/react-window-manager'
 import { ReaderWindow } from './ReaderWindow'
 import { SettingsWindow } from './SettingsWindow'
 
@@ -89,7 +90,7 @@ export const windows: WindowRegistry = {
 Open windows from anywhere inside the provider:
 
 ```tsx
-import { useOpenWindow } from 'react-window-manager'
+import { useOpenWindow } from '@pablovsouza/react-window-manager'
 import { windows } from './windows'
 
 export function Toolbar() {
@@ -118,7 +119,7 @@ export function Toolbar() {
 Scoped shortcuts automatically follow the focused window.
 
 ```tsx
-import { useKeyboardShortcuts } from 'react-window-manager'
+import { useKeyboardShortcuts } from '@pablovsouza/react-window-manager'
 
 export function ReaderWindow({ windowId }: { windowId: string }) {
   useKeyboardShortcuts({
@@ -162,7 +163,7 @@ Types:
 
 ## Styling
 
-The UI uses utility class names (Tailwind-style) and does not ship standalone CSS.
+The UI is authored with utility classes and compiled into package CSS at build time.
 You can override visuals with:
 
 - `windowProps.className`
