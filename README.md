@@ -8,16 +8,31 @@ Window manager for React apps with:
 - Scoped keyboard shortcuts by focused window
 - Optional global shortcuts
 
+## Version
+
+Current stable version: `1.0.0`
+
 ## Installation
 
 ```bash
 npm install @comic-universe/react-window-manager react-reverse-portal
 ```
 
+Install from GitHub (pre-publish/local validation):
+
+```bash
+npm install @comic-universe/react-window-manager@github:PabloVSouza/react-window-manager
+```
+
 Peer dependencies:
 
 - `react@^19`
 - `react-dom@^19`
+
+Styling dependency:
+
+- This package uses Tailwind-style utility classes in its components.
+- Your app should provide compatible styling (typically Tailwind CSS + your design tokens/theme variables).
 
 ## Quick start
 
@@ -147,7 +162,8 @@ Types:
 
 ## Styling
 
-The UI uses utility class names (Tailwind-style). You can override visuals with:
+The UI uses utility class names (Tailwind-style) and does not ship standalone CSS.
+You can override visuals with:
 
 - `windowProps.className`
 - `windowProps.contentClassName`

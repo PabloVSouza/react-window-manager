@@ -1,10 +1,27 @@
 {
   "name": "@comic-universe/react-window-manager",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "Composable window manager for React with draggable, resizable windows and scoped keyboard shortcuts.",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PabloVSouza/react-window-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PabloVSouza/react-window-manager/issues"
+  },
+  "homepage": "https://github.com/PabloVSouza/react-window-manager#readme",
+  "keywords": [
+    "react",
+    "window-manager",
+    "desktop-ui",
+    "tauri"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -14,6 +31,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"

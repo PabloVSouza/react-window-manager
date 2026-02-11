@@ -1,0 +1,18 @@
+node_modules/
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# System files
+.DS_Store
+
+# Editor / IDE
+.idea/
+.vscode/
+
+# TypeScript cache
+*.tsbuildinfo

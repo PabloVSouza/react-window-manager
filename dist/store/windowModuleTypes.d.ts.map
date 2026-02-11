@@ -1,1 +1,0 @@
-{"version":3,"file":"windowModuleTypes.d.ts","sourceRoot":"","sources":["../../src/store/windowModuleTypes.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,gBAAgB,EAAE,cAAc,EAAE,MAAM,wBAAwB,CAAA;AAE9E,MAAM,MAAM,YAAY,CAAC,MAAM,SAAS,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,GAAG,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,IACvF,gBAAgB,CAAC,MAAM,CAAC,CAAA;AAE1B,MAAM,MAAM,aAAa,GAAG,cAAc,CAAA"}
