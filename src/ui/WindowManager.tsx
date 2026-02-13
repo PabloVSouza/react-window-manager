@@ -17,20 +17,34 @@ export function WindowManager() {
       return
     }
 
+    let frame = 0
+
     const updateSize = () => {
       const rect = element.getBoundingClientRect()
       setContainerSize({ width: rect.width, height: rect.height })
     }
 
+    const scheduleUpdate = () => {
+      if (frame) {
+        return
+      }
+
+      frame = window.requestAnimationFrame(() => {
+        frame = 0
+        updateSize()
+      })
+    }
+
     updateSize()
 
-    const observer = new ResizeObserver(updateSize)
+    const observer = new ResizeObserver(scheduleUpdate)
     observer.observe(element)
-    window.addEventListener('resize', updateSize)
 
     return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
       observer.disconnect()
-      window.removeEventListener('resize', updateSize)
     }
   }, [setContainerSize])
 
@@ -79,7 +93,7 @@ export function WindowManager() {
         <InPortal key={`portal-${window.id}`} node={window.portalNode}>
           <KeyboardOwnerProvider owner={window.id}>
             <div
-              className="contents"
+              className="h-full w-full"
               onPointerDownCapture={() => focusWindow(window.id)}
               onMouseDownCapture={() => focusWindow(window.id)}
             >

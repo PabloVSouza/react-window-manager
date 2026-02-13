@@ -84,6 +84,10 @@ export type WindowInstance = {
     frameWidth: number
     frameHeight: number
   }
+  preferredSize: {
+    width: number
+    height: number
+  }
   initialStatus: WindowInitialStatus & { startPosition: WindowStartPosition }
   windowStatus: WindowStatus
   originalContainerSize?: { width: number; height: number }

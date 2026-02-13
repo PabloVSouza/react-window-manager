@@ -111,55 +111,81 @@ const focusWindowInList = (windows: WindowInstance[], id: string): WindowInstanc
 export function useWindowManagerStore(): WindowManagerStore {
   const [windows, setWindows] = useState<WindowInstance[]>([])
   const [containerSize, setContainerSizeState] = useState(defaultContainerSize)
+  const containerSizeRef = useRef(defaultContainerSize)
   const idCounter = useRef(0)
 
   const setContainerSize = useCallback((size: { width: number; height: number }) => {
-    setContainerSizeState(size)
+    const normalized = {
+      width: Math.max(0, Math.round(size.width)),
+      height: Math.max(0, Math.round(size.height))
+    }
+    const current = containerSizeRef.current
+    if (current.width === normalized.width && current.height === normalized.height) {
+      return
+    }
+
+    containerSizeRef.current = normalized
+
+    setContainerSizeState(normalized)
 
     setWindows((currentWindows) => {
-      if (!size.width || !size.height) {
+      if (!normalized.width || !normalized.height) {
         return currentWindows
       }
 
-      return currentWindows.map((window) => {
+      let changed = false
+      const nextWindows = currentWindows.map((window) => {
         if (window.windowStatus.isMaximized) {
+          const isSameMaximized =
+            window.windowStatus.top === 0 &&
+            window.windowStatus.left === 0 &&
+            window.windowStatus.width === normalized.width &&
+            window.windowStatus.height === normalized.height &&
+            window.originalContainerSize?.width === normalized.width &&
+            window.originalContainerSize?.height === normalized.height
+
+          if (isSameMaximized) {
+            return window
+          }
+
+          changed = true
           return {
             ...window,
             windowStatus: {
               ...window.windowStatus,
               top: 0,
               left: 0,
-              width: size.width,
-              height: size.height
+              width: normalized.width,
+              height: normalized.height
             },
-            originalContainerSize: size
+            originalContainerSize: normalized
           }
         }
 
-        const bounds = getSizeBounds(size)
+        const bounds = getSizeBounds(normalized)
         const measuredDesiredWidth = window.contentSize
           ? Math.max(MIN_WINDOW_WIDTH, window.contentSize.width + window.contentSize.frameWidth)
-          : window.windowStatus.width
+          : window.preferredSize.width
         const measuredDesiredHeight = window.contentSize
           ? Math.max(MIN_WINDOW_HEIGHT, window.contentSize.height + window.contentSize.frameHeight)
-          : window.windowStatus.height
+          : window.preferredSize.height
 
         const configuredWidth =
           window.initialStatus.width !== undefined
-            ? parseMeasure(window.initialStatus.width, size.width, window.windowStatus.width)
+            ? parseMeasure(window.initialStatus.width, normalized.width, window.windowStatus.width)
             : window.windowStatus.width
         const configuredHeight =
           window.initialStatus.height !== undefined
-            ? parseMeasure(window.initialStatus.height, size.height, window.windowStatus.height)
+            ? parseMeasure(window.initialStatus.height, normalized.height, window.windowStatus.height)
             : window.windowStatus.height
 
         const targetWidth = window.autoSize.width
-          ? measuredDesiredWidth
+          ? Math.max(measuredDesiredWidth, window.preferredSize.width)
           : window.manualSize
             ? window.windowStatus.width
             : configuredWidth
         const targetHeight = window.autoSize.height
-          ? measuredDesiredHeight
+          ? Math.max(measuredDesiredHeight, window.preferredSize.height)
           : window.manualSize
             ? window.windowStatus.height
             : configuredHeight
@@ -169,27 +195,58 @@ export function useWindowManagerStore(): WindowManagerStore {
         const left = window.windowStatus.left
         const top = window.windowStatus.top
         const startPosition = window.initialStatus.startPosition || 'center'
-        const startPos = resolvePositionByStart(startPosition, width, height, size)
+        const startPos = resolvePositionByStart(startPosition, width, height, normalized)
         const keepAnchored =
           !window.manualPosition && hasStartPositionAnchor(window.initialStatus.positionAnchor)
 
         if (window.pendingInitialPosition) {
+          const nextLeft = clamp(startPos.left, 0, Math.max(0, normalized.width - width))
+          const nextTop = clamp(startPos.top, 0, Math.max(0, normalized.height - height))
+          const nextPreferredWidth = window.autoSize.width
+            ? Math.max(window.preferredSize.width, width)
+            : window.preferredSize.width
+          const nextPreferredHeight = window.autoSize.height
+            ? Math.max(window.preferredSize.height, height)
+            : window.preferredSize.height
+
+          const isSamePending =
+            window.windowStatus.width === width &&
+            window.windowStatus.height === height &&
+            window.windowStatus.left === nextLeft &&
+            window.windowStatus.top === nextTop &&
+            window.preferredSize.width === nextPreferredWidth &&
+            window.preferredSize.height === nextPreferredHeight &&
+            window.originalContainerSize?.width === normalized.width &&
+            window.originalContainerSize?.height === normalized.height
+
+          if (isSamePending) {
+            return window
+          }
+
+          changed = true
           return {
             ...window,
             pendingInitialPosition: false,
+            preferredSize: {
+              width: nextPreferredWidth,
+              height: nextPreferredHeight
+            },
             windowStatus: {
               ...window.windowStatus,
               width,
               height,
-              left: clamp(startPos.left, 0, Math.max(0, size.width - width)),
-              top: clamp(startPos.top, 0, Math.max(0, size.height - height))
+              left: nextLeft,
+              top: nextTop
             },
-            originalContainerSize: size
+            originalContainerSize: normalized
           }
         }
 
         const outOfBounds =
-          left < 0 || top < 0 || left + width > size.width || top + height > size.height
+          left < 0 ||
+          top < 0 ||
+          left + width > normalized.width ||
+          top + height > normalized.height
 
         if (!outOfBounds) {
           let nextLeft = left
@@ -217,11 +274,37 @@ export function useWindowManagerStore(): WindowManagerStore {
             nextTop = nextTop - (height - window.windowStatus.height) / 2
           }
 
-          nextLeft = clamp(nextLeft, 0, Math.max(0, size.width - width))
-          nextTop = clamp(nextTop, 0, Math.max(0, size.height - height))
+          nextLeft = clamp(nextLeft, 0, Math.max(0, normalized.width - width))
+          nextTop = clamp(nextTop, 0, Math.max(0, normalized.height - height))
 
+          const nextPreferredWidth = window.autoSize.width
+            ? Math.max(window.preferredSize.width, width)
+            : window.preferredSize.width
+          const nextPreferredHeight = window.autoSize.height
+            ? Math.max(window.preferredSize.height, height)
+            : window.preferredSize.height
+
+          const unchanged =
+            window.windowStatus.width === width &&
+            window.windowStatus.height === height &&
+            window.windowStatus.left === nextLeft &&
+            window.windowStatus.top === nextTop &&
+            window.preferredSize.width === nextPreferredWidth &&
+            window.preferredSize.height === nextPreferredHeight &&
+            window.originalContainerSize?.width === normalized.width &&
+            window.originalContainerSize?.height === normalized.height
+
+          if (unchanged) {
+            return window
+          }
+
+          changed = true
           return {
             ...window,
+            preferredSize: {
+              width: nextPreferredWidth,
+              height: nextPreferredHeight
+            },
             windowStatus: {
               ...window.windowStatus,
               width,
@@ -229,7 +312,7 @@ export function useWindowManagerStore(): WindowManagerStore {
               left: nextLeft,
               top: nextTop
             },
-            originalContainerSize: size
+            originalContainerSize: normalized
           }
         }
 
@@ -249,8 +332,8 @@ export function useWindowManagerStore(): WindowManagerStore {
           window.originalContainerSize.width &&
           window.originalContainerSize.height
         ) {
-          const widthRatio = size.width / window.originalContainerSize.width
-          const heightRatio = size.height / window.originalContainerSize.height
+          const heightRatio = normalized.height / window.originalContainerSize.height
+          const widthRatio = normalized.width / window.originalContainerSize.width
           nextLeft = left * widthRatio
           nextTop = top * heightRatio
         } else {
@@ -258,25 +341,51 @@ export function useWindowManagerStore(): WindowManagerStore {
             window.initialStatus.startPosition || 'center',
             width,
             height,
-            size
+            normalized
           )
           const initialLeft =
             window.initialStatus.left !== undefined
-              ? parseMeasure(window.initialStatus.left, size.width, startPos.left)
+              ? parseMeasure(window.initialStatus.left, normalized.width, startPos.left)
               : startPos.left
           const initialTop =
             window.initialStatus.top !== undefined
-              ? parseMeasure(window.initialStatus.top, size.height, startPos.top)
+              ? parseMeasure(window.initialStatus.top, normalized.height, startPos.top)
               : startPos.top
           nextLeft = initialLeft
           nextTop = initialTop
         }
 
-        nextLeft = clamp(nextLeft, 0, Math.max(0, size.width - width))
-        nextTop = clamp(nextTop, 0, Math.max(0, size.height - height))
+        nextLeft = clamp(nextLeft, 0, Math.max(0, normalized.width - width))
+        nextTop = clamp(nextTop, 0, Math.max(0, normalized.height - height))
 
+        const nextPreferredWidth = window.autoSize.width
+          ? Math.max(window.preferredSize.width, width)
+          : window.preferredSize.width
+        const nextPreferredHeight = window.autoSize.height
+          ? Math.max(window.preferredSize.height, height)
+          : window.preferredSize.height
+
+        const unchanged =
+          window.windowStatus.width === width &&
+          window.windowStatus.height === height &&
+          window.windowStatus.left === nextLeft &&
+          window.windowStatus.top === nextTop &&
+          window.preferredSize.width === nextPreferredWidth &&
+          window.preferredSize.height === nextPreferredHeight &&
+          window.originalContainerSize?.width === normalized.width &&
+          window.originalContainerSize?.height === normalized.height
+
+        if (unchanged) {
+          return window
+        }
+
+        changed = true
         return {
           ...window,
+          preferredSize: {
+            width: nextPreferredWidth,
+            height: nextPreferredHeight
+          },
           windowStatus: {
             ...window.windowStatus,
             width,
@@ -284,9 +393,11 @@ export function useWindowManagerStore(): WindowManagerStore {
             left: nextLeft,
             top: nextTop
           },
-          originalContainerSize: size
+          originalContainerSize: normalized
         }
       })
+
+      return changed ? nextWindows : currentWindows
     })
   }, [])
 
@@ -433,8 +544,9 @@ export function useWindowManagerStore(): WindowManagerStore {
       id: string,
       content: { width: number; height: number; frameWidth: number; frameHeight: number }
     ) => {
-      setWindows((currentWindows) =>
-        currentWindows.map((window) => {
+      setWindows((currentWindows) => {
+        let changed = false
+        const nextWindows = currentWindows.map((window) => {
           if (window.id !== id) {
             return window
           }
@@ -458,16 +570,36 @@ export function useWindowManagerStore(): WindowManagerStore {
           const desiredHeight = window.autoSize.height
             ? Math.max(MIN_WINDOW_HEIGHT, content.height + content.frameHeight)
             : window.windowStatus.height
+          const preferredWidth = window.autoSize.width
+            ? Math.max(window.preferredSize.width, desiredWidth)
+            : window.preferredSize.width
+          const preferredHeight = window.autoSize.height
+            ? Math.max(window.preferredSize.height, desiredHeight)
+            : window.preferredSize.height
 
           const bounds = getSizeBounds(containerSize)
-          const nextWidth = clamp(desiredWidth, bounds.minWidth, bounds.maxWidth)
-          const nextHeight = clamp(desiredHeight, bounds.minHeight, bounds.maxHeight)
+          const nextWidth = clamp(preferredWidth, bounds.minWidth, bounds.maxWidth)
+          const nextHeight = clamp(preferredHeight, bounds.minHeight, bounds.maxHeight)
 
           if (
             Math.abs(nextWidth - window.windowStatus.width) < 1 &&
             Math.abs(nextHeight - window.windowStatus.height) < 1
           ) {
-            return window
+            const sameContent =
+              window.contentSize?.width === content.width &&
+              window.contentSize?.height === content.height &&
+              window.contentSize?.frameWidth === content.frameWidth &&
+              window.contentSize?.frameHeight === content.frameHeight
+
+            if (sameContent) {
+              return window
+            }
+
+            changed = true
+            return {
+              ...window,
+              contentSize: content
+            }
           }
 
           const startPosition = window.initialStatus.startPosition || 'center'
@@ -489,9 +621,31 @@ export function useWindowManagerStore(): WindowManagerStore {
           nextLeft = clamp(nextLeft, 0, Math.max(0, containerSize.width - nextWidth))
           nextTop = clamp(nextTop, 0, Math.max(0, containerSize.height - nextHeight))
 
+          const sameContent =
+            window.contentSize?.width === content.width &&
+            window.contentSize?.height === content.height &&
+            window.contentSize?.frameWidth === content.frameWidth &&
+            window.contentSize?.frameHeight === content.frameHeight
+          const unchangedPositionSize =
+            window.windowStatus.width === nextWidth &&
+            window.windowStatus.height === nextHeight &&
+            window.windowStatus.left === nextLeft &&
+            window.windowStatus.top === nextTop &&
+            window.preferredSize.width === preferredWidth &&
+            window.preferredSize.height === preferredHeight
+
+          if (sameContent && unchangedPositionSize) {
+            return window
+          }
+
+          changed = true
           return {
             ...window,
             contentSize: content,
+            preferredSize: {
+              width: preferredWidth,
+              height: preferredHeight
+            },
             windowStatus: {
               ...window.windowStatus,
               width: nextWidth,
@@ -501,7 +655,9 @@ export function useWindowManagerStore(): WindowManagerStore {
             }
           }
         })
-      )
+
+        return changed ? nextWindows : currentWindows
+      })
     },
     [containerSize]
   )
@@ -619,6 +775,10 @@ export function useWindowManagerStore(): WindowManagerStore {
                 width: nextInitialStatus.width === undefined,
                 height: nextInitialStatus.height === undefined
               },
+              preferredSize: {
+                width: width,
+                height: height
+              },
               pendingInitialPosition:
                 (nextInitialStatus.left === undefined || nextInitialStatus.top === undefined) &&
                 (!containerSize.width || !containerSize.height),
@@ -681,11 +841,7 @@ export function useWindowManagerStore(): WindowManagerStore {
           id,
           title: params.title,
           content: params.content,
-          portalNode: createHtmlPortalNode({
-            attributes: {
-              class: params.contentClassName ?? ''
-            }
-          }),
+          portalNode: createHtmlPortalNode(),
           overlay: params.overlay ?? false,
           closeable: params.closeable ?? true,
           className: params.className,
@@ -699,6 +855,10 @@ export function useWindowManagerStore(): WindowManagerStore {
           autoSize: {
             width: autoSizeWidth,
             height: autoSizeHeight
+          },
+          preferredSize: {
+            width,
+            height
           },
           pendingInitialPosition:
             (initialStatus.left === undefined || initialStatus.top === undefined) &&
