@@ -1,6 +1,6 @@
 {
   "name": "@pablovsouza/react-window-manager",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Composable window manager for React with draggable, resizable windows and scoped keyboard shortcuts.",
   "private": false,
   "license": "MIT",
