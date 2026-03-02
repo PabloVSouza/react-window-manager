@@ -402,7 +402,17 @@ export function useWindowManagerStore(): WindowManagerStore {
   }, [])
 
   const focusWindow = useCallback((id: string) => {
-    setWindows((currentWindows) => focusWindowInList(currentWindows, id))
+    setWindows((currentWindows) => {
+      const alreadyFocused = currentWindows.every(
+        (window) => window.windowStatus.isFocused === (window.id === id)
+      )
+
+      if (alreadyFocused) {
+        return currentWindows
+      }
+
+      return focusWindowInList(currentWindows, id)
+    })
   }, [])
 
   const closeWindow = useCallback((id: string) => {

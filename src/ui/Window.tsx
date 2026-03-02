@@ -12,6 +12,13 @@ type WindowProps = {
   children?: ReactNode
 }
 
+const INTERACTIVE_TARGET_SELECTOR =
+  'button, input, textarea, select, option, a, label, [role="button"], [role="link"], [data-no-window-focus-capture]'
+
+function shouldSkipFocusCapture(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(INTERACTIVE_TARGET_SELECTOR) !== null
+}
+
 export function Window({ window, zIndex, children }: WindowProps) {
   const {
     closeWindow,
@@ -116,8 +123,18 @@ export function Window({ window, zIndex, children }: WindowProps) {
         className
       )}
       style={style}
-      onPointerDownCapture={() => focusWindow(id)}
-      onMouseDownCapture={() => focusWindow(id)}
+      onPointerDownCapture={(event) => {
+        if (shouldSkipFocusCapture(event.target)) {
+          return
+        }
+        focusWindow(id)
+      }}
+      onMouseDownCapture={(event) => {
+        if (shouldSkipFocusCapture(event.target)) {
+          return
+        }
+        focusWindow(id)
+      }}
     >
       {titleBar && (
         <header
@@ -166,7 +183,7 @@ export function Window({ window, zIndex, children }: WindowProps) {
       )}
 
       {!titleBar && (
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+        <div className="absolute right-2 top-2 z-50 flex items-center gap-1">
           {minimizable && (
             <IconButton
               variant="secondary"

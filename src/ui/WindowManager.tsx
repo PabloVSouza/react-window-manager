@@ -5,6 +5,13 @@ import { KeyboardOwnerProvider } from '../shortcuts/KeyboardShortcutsProvider'
 import { Window } from './Window'
 import { MinimizedBar } from './MinimizedBar'
 
+const INTERACTIVE_TARGET_SELECTOR =
+  'button, input, textarea, select, option, a, label, [role="button"], [role="link"], [data-no-window-focus-capture]'
+
+function shouldSkipFocusCapture(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(INTERACTIVE_TARGET_SELECTOR) !== null
+}
+
 export function WindowManager() {
   const containerRef = useRef<HTMLDivElement>(null)
   const { windows, setContainerSize, mouseCapture, removeMovingResizing, focusWindow } =
@@ -92,11 +99,7 @@ export function WindowManager() {
       {windows.map((window) => (
         <InPortal key={`portal-${window.id}`} node={window.portalNode}>
           <KeyboardOwnerProvider owner={window.id}>
-            <div
-              className="h-full w-full"
-              onPointerDownCapture={() => focusWindow(window.id)}
-              onMouseDownCapture={() => focusWindow(window.id)}
-            >
+            <div className="h-full w-full pointer-events-auto">
               {window.content}
             </div>
           </KeyboardOwnerProvider>
