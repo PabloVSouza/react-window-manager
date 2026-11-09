@@ -223,6 +223,26 @@ describe('manager outside React', () => {
   })
 })
 
+describe('auto height', () => {
+  it('follows the content both ways', () => {
+    const manager = createWindowManager()
+    manager.setContainerSize({ width: 1366, height: 768 })
+    manager.openWindow({
+      id: 'dialog',
+      content: <p>D</p>,
+      initialStatus: { width: 500, minHeight: 80 }
+    })
+    const height = () => manager.getState().windows[0]?.windowStatus.height
+    const frame = { width: 480, frameWidth: 20, frameHeight: 40 }
+    manager.syncWindowContentSize('dialog', { ...frame, height: 400 })
+    expect(height()).toBe(440)
+    manager.syncWindowContentSize('dialog', { ...frame, height: 100 })
+    expect(height()).toBe(140)
+    manager.syncWindowContentSize('dialog', { ...frame, height: 10 })
+    expect(height()).toBe(80) // never below its minimum height
+  })
+})
+
 describe('content', () => {
   it('fills a fixed-height window and wraps it in bodyClassName', async () => {
     const Probe = () => {

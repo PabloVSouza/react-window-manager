@@ -91,7 +91,11 @@ export function Window({ window, zIndex, children }: WindowProps) {
       }
 
       const contentWidth = Math.ceil(contentNode.scrollWidth)
-      const contentHeight = Math.ceil(contentNode.scrollHeight)
+      // An auto-height window measures its content itself: the scroll area's scrollHeight is never
+      // below the area's own height, so the window could grow but never shrink back.
+      const contentHeight = window.autoSize.height
+        ? Math.ceil(window.portalNode.element.getBoundingClientRect().height)
+        : Math.ceil(contentNode.scrollHeight)
       const frameWidth = Math.ceil(section.offsetWidth - contentNode.clientWidth)
       const frameHeight = Math.ceil(section.offsetHeight - contentNode.clientHeight)
 
@@ -118,14 +122,19 @@ export function Window({ window, zIndex, children }: WindowProps) {
     const sectionObserver = new ResizeObserver(scheduleMeasure)
     sectionObserver.observe(sectionElement)
 
+    // The content itself (it can shrink inside an unchanged scroll area).
+    const portalObserver = new ResizeObserver(scheduleMeasure)
+    portalObserver.observe(window.portalNode.element)
+
     return () => {
       if (frame) {
         globalThis.window.cancelAnimationFrame(frame)
       }
       contentObserver.disconnect()
       sectionObserver.disconnect()
+      portalObserver.disconnect()
     }
-  }, [id, syncWindowContentSize, children])
+  }, [id, syncWindowContentSize, children, window.autoSize.height, window.portalNode])
 
   // Keyboard focus follows the focused window: a window that becomes the focused one (opened,
   // clicked, restored, or the one left when another closes) takes the keyboard focus unless it
@@ -179,7 +188,7 @@ export function Window({ window, zIndex, children }: WindowProps) {
       ref={sectionRef}
       tabIndex={-1}
       className={cn(
-        'pointer-events-auto absolute flex outline-none min-h-40 min-w-56 flex-col overflow-hidden rounded-lg border border-border/70 bg-card/95 text-card-foreground shadow-xl backdrop-blur-sm',
+        'pointer-events-auto absolute flex outline-none flex-col overflow-hidden rounded-lg border border-border/70 bg-card/95 text-card-foreground shadow-xl backdrop-blur-sm',
         className
       )}
       style={style}

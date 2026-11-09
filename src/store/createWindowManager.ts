@@ -628,9 +628,8 @@ export function createWindowManager(): WindowManager {
         const preferredWidth = window.autoSize.width
           ? Math.max(window.preferredSize.width, desiredWidth)
           : window.preferredSize.width
-        const preferredHeight = window.autoSize.height
-          ? Math.max(window.preferredSize.height, desiredHeight)
-          : window.preferredSize.height
+        // Auto height follows the content both ways (a dialog shrinks when its content does).
+        const preferredHeight = window.autoSize.height ? desiredHeight : window.preferredSize.height
 
         const bounds = getSizeBounds(containerSize, minSize)
         const nextWidth = clamp(preferredWidth, bounds.minWidth, bounds.maxWidth)
