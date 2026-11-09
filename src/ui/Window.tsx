@@ -12,13 +12,6 @@ type WindowProps = {
   children?: ReactNode
 }
 
-const INTERACTIVE_TARGET_SELECTOR =
-  'button, input, textarea, select, option, a, label, [role="button"], [role="link"], [data-no-window-focus-capture]'
-
-function shouldSkipFocusCapture(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest(INTERACTIVE_TARGET_SELECTOR) !== null
-}
-
 /** The element last focused inside each window's portal node; outlives the frame (minimize). */
 const lastFocusByContent = new WeakMap<HTMLElement, HTMLElement>()
 
@@ -134,6 +127,37 @@ export function Window({ window, zIndex, children }: WindowProps) {
     }
   }, [id, syncWindowContentSize, children])
 
+  // Keyboard focus follows the focused window: a window that becomes the focused one (opened,
+  // clicked, restored, or the one left when another closes) takes the keyboard focus unless it
+  // already has it, back on the element last focused in it (or on the window itself). Keys then
+  // reach the window the manager routes them to. Runs before the content's own effects, so a
+  // window that focuses a field when it opens still gets its way.
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section || !windowStatus.isFocused || windowStatus.isMinimized) {
+      return
+    }
+
+    if (section.contains(document.activeElement)) {
+      return
+    }
+
+    const last = lastFocusByContent.get(window.portalNode.element)
+    if (last?.isConnected && section.contains(last)) {
+      last.focus({ preventScroll: true })
+    } else {
+      section.focus({ preventScroll: true })
+    }
+  }, [window.portalNode, windowStatus.isFocused, windowStatus.isMinimized])
+
+  // Content fills a window whose height is fixed (or maximized), so it can lay itself out in that
+  // height (a list that scrolls, buttons at the bottom). An auto-height window takes the
+  // content's own height instead.
+  const fillHeight = !window.autoSize.height || windowStatus.isMaximized
+  useLayoutEffect(() => {
+    window.portalNode.element.style.height = fillHeight ? '100%' : ''
+  }, [window.portalNode, fillHeight])
+
   const style: CSSProperties = windowStatus.isMaximized
     ? {
         top: 0,
@@ -153,22 +177,22 @@ export function Window({ window, zIndex, children }: WindowProps) {
   return (
     <section
       ref={sectionRef}
+      tabIndex={-1}
       className={cn(
-        'pointer-events-auto absolute flex min-h-40 min-w-56 flex-col overflow-hidden rounded-lg border border-border/70 bg-card/95 text-card-foreground shadow-xl backdrop-blur-sm',
+        'pointer-events-auto absolute flex outline-none min-h-40 min-w-56 flex-col overflow-hidden rounded-lg border border-border/70 bg-card/95 text-card-foreground shadow-xl backdrop-blur-sm',
         className
       )}
       style={style}
-      onPointerDownCapture={(event) => {
-        if (shouldSkipFocusCapture(event.target)) {
-          return
+      onPointerDownCapture={() => {
+        if (!windowStatus.isFocused) {
+          focusWindow(id)
         }
-        focusWindow(id)
       }}
-      onMouseDownCapture={(event) => {
-        if (shouldSkipFocusCapture(event.target)) {
-          return
+      onFocusCapture={() => {
+        // Keyboard focus moving into the window (Tab, a script) makes it the focused window.
+        if (!windowStatus.isFocused) {
+          focusWindow(id)
         }
-        focusWindow(id)
       }}
     >
       {titleBar && (

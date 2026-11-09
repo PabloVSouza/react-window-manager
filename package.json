@@ -1,6 +1,6 @@
 {
   "name": "@pablovsouza/react-window-manager",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Composable window manager for React with draggable, resizable windows and scoped keyboard shortcuts.",
   "private": false,
   "license": "MIT",
@@ -44,7 +44,8 @@
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "vitest run"
   },
   "dependencies": {
     "react-reverse-portal": "^2.3.0"
@@ -55,10 +56,15 @@
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.5",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "jsdom": "^31.0.0",
     "prettier": "^3.9.10",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tailwindcss": "^4.3.5",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
   }
 }

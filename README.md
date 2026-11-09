@@ -10,7 +10,7 @@ Window manager for React apps with:
 
 ## Version
 
-Current stable version: `0.8.0`
+Current stable version: `0.9.0`
 
 ## Installation
 
@@ -181,12 +181,68 @@ Focus:
 - Window content mounts after its frame is in the document, so `autoFocus` works.
 - Each window remembers the element last focused inside it and restores it when the content is
   moved back into a frame (restoring a minimized window, StrictMode remounts).
+- Keyboard focus follows the focused window: a window that becomes the focused one (opened, clicked,
+  restored, or the one left when another closes) takes the keyboard focus, back on the element last
+  focused in it (or on the window itself). Keys reach the window the shortcuts are routed to.
+- Clicking anywhere in a window, a field included, or tabbing into it focuses that window.
 
 Position anchors:
 
 - `initialStatus.positionAnchor: 'none'` (default): free position after open.
 - `initialStatus.positionAnchor: 'startPosition'`: keeps the semantic anchor on container resize.
   Example: `startPosition: 'center'` stays centered while viewport changes.
+
+Close callback, minimum size and content classes:
+
+```tsx
+openWindow({
+  component: 'SettingsWindow',
+  windowProps: {
+    onClose: () => console.log('closed'), // close button, closeWindow or clearWindows
+    bodyClassName: 'flex flex-col' // the element that wraps the window's content
+  },
+  initialStatus: { width: 360, height: 200, minWidth: 240, minHeight: 160 } // default min 320×220
+})
+```
+
+Content fills a window whose height is fixed (or a maximized one), so a window can lay itself out
+in that height: a list that scrolls inside, buttons at the bottom. Use `h-full` (or
+`bodyClassName: 'flex flex-col'` and `flex-1`) on the content's root.
+
+## Using the manager outside React
+
+Create the manager yourself to open and close windows from plain code (stores, services, tests):
+
+```tsx
+import {
+  WindowSystemProvider,
+  WindowDesktop,
+  createWindowManager
+} from '@pablovsouza/react-window-manager'
+
+export const windows = createWindowManager()
+
+export function AppRoot() {
+  return (
+    <WindowSystemProvider manager={windows} renderDesktop={false}>
+      <TopMenu />
+      <main className="relative flex-1">
+        {/* The windows live (move, maximize, centre) inside this area, under the menu. */}
+        <WindowDesktop className="absolute inset-0 z-0" />
+      </main>
+    </WindowSystemProvider>
+  )
+}
+
+// Anywhere:
+const id = windows.openWindow({ title: 'Report', content: <Report /> })
+windows.closeWindow(id)
+windows.clearWindows() // on logout: closes every window, newest first
+windows.getState().windows // current windows
+windows.subscribe(() => console.log('changed'))
+```
+
+`renderDesktop` defaults to true: the desktop covers the whole viewport (`fixed inset-0 z-[100]`).
 
 ## Advanced usage
 
@@ -240,6 +296,22 @@ keys to it while it (or anything inside it) has focus:
 <ProductPicker data-keys="F5 Enter" />
 ```
 
+A component that handles a key itself and calls `event.preventDefault()` (a menu closing on
+Escape) keeps it: shortcuts skip events that are already handled. A focused button or link keeps
+Enter and Space.
+
+Several `useKeyboardShortcuts` in one window all stay registered. `priority` orders them (higher
+first; equal priorities run the newest registration first). A handler returns `true` to stop the
+event, `false` to pass it on to the next shortcut. A shortcut without `key` and `code` sees every
+key press:
+
+```tsx
+useKeyboardShortcuts({
+  priority: 1,
+  shortcuts: [{ handler: (event) => (event.key === 'F7' ? (openHelp(), true) : false) }]
+})
+```
+
 Global shortcuts:
 
 ```tsx
@@ -252,7 +324,10 @@ useKeyboardShortcuts({
 ## API summary
 
 - `WindowProvider`: recommended provider (window system + registry context)
-- `WindowSystemProvider`: low-level provider without registry context
+- `WindowSystemProvider`: low-level provider without registry context (`manager`, `renderDesktop`)
+- `createWindowManager()`: a manager usable outside React (`openWindow`, `closeWindow`,
+  `clearWindows`, `getState`, `subscribe`...)
+- `WindowDesktop`: the windows' layer, to place inside your layout (`renderDesktop={false}`)
 - `useWindowManager`: low-level manager API (`openWindow`, `focusWindow`, `closeWindow`, etc.)
 - `useOpenWindow()`: window opener using `WindowProvider` registry
 - `useOpenWindow(registry)`: manual registry mode for advanced usage
@@ -272,6 +347,11 @@ Types:
 - `WindowDefinitionResolveContext`
 
 ## Styling
+
+The package CSS has Tailwind's theme variables and the utilities it uses, without Tailwind's preflight
+(a global reset would restyle the app): the app brings its own base styles. Fallback theme colours
+(`--card`, `--muted`, `--border`...) sit in the base layer, so an app's own colour tokens take
+precedence.
 
 The UI is authored with utility classes and compiled into package CSS at build time.
 You can override visuals with:

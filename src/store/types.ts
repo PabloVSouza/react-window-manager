@@ -25,6 +25,9 @@ export type WindowInitialStatus = {
   top?: WindowMeasure
   startPosition?: WindowStartPosition
   positionAnchor?: WindowPositionAnchor
+  /** Smallest size the window opens at and can be resized to (default 320×220). */
+  minWidth?: number
+  minHeight?: number
 }
 
 export type WindowCreateParams = {
@@ -35,6 +38,8 @@ export type WindowCreateParams = {
   closeable?: boolean
   className?: string
   contentClassName?: string
+  /** Classes of the element that wraps the window's content (inside the scroll area). */
+  bodyClassName?: string
   maximizable?: boolean
   minimizable?: boolean
   resizable?: boolean
@@ -42,6 +47,8 @@ export type WindowCreateParams = {
   unique?: boolean
   titleBar?: boolean
   initialStatus?: WindowInitialStatus
+  /** Called once when the window closes (close button, `closeWindow`, `clearWindows`). */
+  onClose?: () => void
 }
 
 export type WindowStatus = {
@@ -65,6 +72,8 @@ export type WindowInstance = {
   closeable: boolean
   className?: string
   contentClassName?: string
+  bodyClassName?: string
+  onClose?: () => void
   maximizable: boolean
   minimizable: boolean
   resizable: boolean
@@ -94,13 +103,12 @@ export type WindowInstance = {
   restoreStatus?: Pick<WindowStatus, 'width' | 'height' | 'left' | 'top'>
 }
 
-export type WindowManagerStore = {
-  windows: WindowInstance[]
-  containerSize: { width: number; height: number }
+export type WindowManagerActions = {
   setContainerSize: (size: { width: number; height: number }) => void
   mouseCapture: (event: { movementX: number; movementY: number }) => void
   removeMovingResizing: () => void
   openWindow: (params: WindowCreateParams) => string
+  /** Closes a window and calls its `onClose`. */
   closeWindow: (id: string) => void
   focusWindow: (id: string) => void
   setWindowMinimized: (id: string, minimized: boolean) => void
@@ -112,5 +120,18 @@ export type WindowManagerStore = {
     content: { width: number; height: number; frameWidth: number; frameHeight: number }
   ) => void
   updateWindow: (id: string, patch: Partial<WindowCreateParams>) => void
+  /** Closes every window, newest first, calling each one's `onClose`. */
   clearWindows: () => void
+}
+
+export type WindowManagerStore = WindowManagerActions & {
+  windows: WindowInstance[]
+  containerSize: { width: number; height: number }
+}
+
+/** A window manager created with `createWindowManager()`: usable outside React. */
+export type WindowManager = WindowManagerActions & {
+  /** The current windows and container size (a new object after every change). */
+  getState: () => WindowManagerStore
+  subscribe: (listener: () => void) => () => void
 }

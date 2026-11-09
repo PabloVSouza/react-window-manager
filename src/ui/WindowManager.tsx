@@ -5,14 +5,17 @@ import { KeyboardOwnerProvider } from '../shortcuts/KeyboardShortcutsProvider'
 import { Window } from './Window'
 import { MinimizedBar } from './MinimizedBar'
 
-const INTERACTIVE_TARGET_SELECTOR =
-  'button, input, textarea, select, option, a, label, [role="button"], [role="link"], [data-no-window-focus-capture]'
+import { cn } from '../internal/cn'
 
-function shouldSkipFocusCapture(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest(INTERACTIVE_TARGET_SELECTOR) !== null
+type WindowDesktopProps = {
+  /**
+   * Positioning of the desktop, the layer the windows live in (default: the whole viewport,
+   * `fixed inset-0 z-[100]`). It is the windows' container: they move, maximize and centre in it.
+   */
+  className?: string
 }
 
-export function WindowManager() {
+export function WindowManager({ className }: WindowDesktopProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { windows, setContainerSize, mouseCapture, removeMovingResizing, focusWindow } =
     useWindowManager()
@@ -95,7 +98,10 @@ export function WindowManager() {
   }, [isInteracting, mouseCapture, removeMovingResizing])
 
   return (
-    <div ref={containerRef} className="pointer-events-none fixed inset-0 z-[100]">
+    <div
+      ref={containerRef}
+      className={cn('pointer-events-none', className ?? 'fixed inset-0 z-[100]')}
+    >
       {activeWindowLayers.map(({ window, backdropZIndex, windowZIndex }) => (
         <div key={window.id} className="contents">
           {window.overlay && backdropZIndex !== null && (
@@ -121,7 +127,9 @@ export function WindowManager() {
       {windows.map((window) => (
         <InPortal key={`portal-${window.id}`} node={window.portalNode}>
           <KeyboardOwnerProvider owner={window.id}>
-            <div className="h-full w-full pointer-events-auto">{window.content}</div>
+            <div className={cn('pointer-events-auto h-full w-full', window.bodyClassName)}>
+              {window.content}
+            </div>
           </KeyboardOwnerProvider>
         </InPortal>
       ))}

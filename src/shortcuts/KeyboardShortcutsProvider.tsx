@@ -11,6 +11,7 @@ import {
 import { useWindowManager } from '../WindowSystemProvider'
 
 export type KeyboardShortcut = {
+  /** The key (`event.key`). Without `key` and `code`, the shortcut sees every key press. */
   key?: string
   code?: string
   ctrl?: boolean
@@ -26,6 +27,10 @@ export type KeyboardShortcut = {
    * Ctrl/Alt/Meta, function keys (F1-F24) and Escape still fire there.
    */
   allowInEditable?: boolean
+  /**
+   * Runs on a matching key. Return true to stop the event (preventDefault + stopPropagation),
+   * false to pass it on to the next shortcut, nothing to just stop looking.
+   */
   handler: (event: KeyboardEvent) => void | boolean
 }
 
@@ -33,6 +38,14 @@ type RegisterShortcutsParams = {
   owner: string
   shortcuts: KeyboardShortcut[]
   global?: boolean
+  /** Higher runs first; equal priorities run newest registration first. */
+  priority?: number
+}
+
+type Registration = {
+  shortcuts: KeyboardShortcut[]
+  priority: number
+  order: number
 }
 
 type KeyboardShortcutsContextValue = {
@@ -52,6 +65,10 @@ function normalizeKey(value: string): string {
 function matchesShortcut(shortcut: KeyboardShortcut, event: KeyboardEvent): boolean {
   if (shortcut.enabled === false) {
     return false
+  }
+
+  if (!shortcut.key && !shortcut.code) {
+    return true
   }
 
   if (shortcut.code && shortcut.code !== event.code) {
@@ -119,6 +136,18 @@ function ownKeys(target: EventTarget | null): string[] {
   return target.closest('[data-keys]')?.getAttribute('data-keys')?.split(/\s+/) ?? []
 }
 
+/** A focused button or link keeps Enter and Space (they press it). */
+function pressesTarget(target: EventTarget | null, key: string): boolean {
+  if (key !== 'Enter' && key !== ' ') {
+    return false
+  }
+
+  return (
+    target instanceof Element &&
+    target.closest('button, a[href], summary, [role="button"], [role="link"]') !== null
+  )
+}
+
 function firesWhileEditing(shortcut: KeyboardShortcut): boolean {
   if (shortcut.allowInEditable || shortcut.ctrl || shortcut.alt || shortcut.meta) {
     return true
@@ -133,8 +162,9 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
   const [manualOwner, setManualOwner] = useState<string | null>(null)
   const [windowOwner, setWindowOwner] = useState<string | null>(null)
 
-  const scopedShortcutsRef = useRef<Map<string, KeyboardShortcut[]>>(new Map())
-  const globalShortcutsRef = useRef<Map<string, KeyboardShortcut[]>>(new Map())
+  const scopedShortcutsRef = useRef<Map<string, Map<number, Registration>>>(new Map())
+  const globalShortcutsRef = useRef<Map<string, Map<number, Registration>>>(new Map())
+  const registrationCounter = useRef(0)
 
   const activeOwner = manualOwner ?? windowOwner
 
@@ -146,14 +176,24 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
     setWindowOwner(focusedWindow?.id ?? null)
   }, [windows])
 
-  const registerShortcuts = useCallback(({ owner, shortcuts, global }: RegisterShortcutsParams) => {
-    const targetMap = global ? globalShortcutsRef.current : scopedShortcutsRef.current
-    targetMap.set(owner, shortcuts)
+  const registerShortcuts = useCallback(
+    ({ owner, shortcuts, global, priority = 0 }: RegisterShortcutsParams) => {
+      const targetMap = global ? globalShortcutsRef.current : scopedShortcutsRef.current
+      registrationCounter.current += 1
+      const order = registrationCounter.current
+      const ownerRegistrations = targetMap.get(owner) ?? new Map<number, Registration>()
+      ownerRegistrations.set(order, { shortcuts, priority, order })
+      targetMap.set(owner, ownerRegistrations)
 
-    return () => {
-      targetMap.delete(owner)
-    }
-  }, [])
+      return () => {
+        ownerRegistrations.delete(order)
+        if (!ownerRegistrations.size && targetMap.get(owner) === ownerRegistrations) {
+          targetMap.delete(owner)
+        }
+      }
+    },
+    []
+  )
 
   const clearOwnerShortcuts = useCallback((owner: string) => {
     scopedShortcutsRef.current.delete(owner)
@@ -162,38 +202,54 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // A component already handled this key (a menu closing on Escape, for one).
+      if (event.defaultPrevented) {
+        return
+      }
+
       if (ownKeys(event.target).includes(event.key)) {
         return
       }
 
       const editing = editableTarget(event.target)
-      const globalShortcuts = Array.from(globalShortcutsRef.current.values()).flat()
-      const scopedShortcuts = activeOwner ? scopedShortcutsRef.current.get(activeOwner) || [] : []
+      const pressing = pressesTarget(event.target, event.key)
+      const registrations = [
+        ...Array.from(globalShortcutsRef.current.values()).flatMap((byOrder) =>
+          Array.from(byOrder.values())
+        ),
+        ...(activeOwner
+          ? Array.from(scopedShortcutsRef.current.get(activeOwner)?.values() ?? [])
+          : [])
+      ].sort((a, b) => b.priority - a.priority || b.order - a.order)
 
-      const listeners = [...globalShortcuts, ...scopedShortcuts]
+      for (const registration of registrations) {
+        for (let index = registration.shortcuts.length - 1; index >= 0; index -= 1) {
+          const shortcut = registration.shortcuts[index]
 
-      for (let index = listeners.length - 1; index >= 0; index -= 1) {
-        const shortcut = listeners[index]
+          if (!matchesShortcut(shortcut, event)) {
+            continue
+          }
 
-        if (!matchesShortcut(shortcut, event)) {
-          continue
+          if ((editing || pressing) && !firesWhileEditing(shortcut)) {
+            continue
+          }
+
+          const handled = shortcut.handler(event)
+
+          if (handled === false) {
+            continue
+          }
+
+          if (shortcut.preventDefault || handled === true) {
+            event.preventDefault()
+          }
+
+          if (shortcut.stopPropagation || handled === true) {
+            event.stopPropagation()
+          }
+
+          return
         }
-
-        if (editing && !firesWhileEditing(shortcut)) {
-          continue
-        }
-
-        const handled = shortcut.handler(event)
-
-        if (shortcut.preventDefault || handled === true) {
-          event.preventDefault()
-        }
-
-        if (shortcut.stopPropagation || handled === true) {
-          event.stopPropagation()
-        }
-
-        break
       }
     }
 
@@ -240,6 +296,8 @@ type UseKeyboardShortcutsParams = {
   shortcuts: KeyboardShortcut[]
   global?: boolean
   enabled?: boolean
+  /** Higher runs first (default 0); equal priorities run newest registration first. */
+  priority?: number
 }
 
 function generateListenerOwnerId(): string {
@@ -254,7 +312,8 @@ export function useKeyboardShortcuts({
   owner,
   shortcuts,
   global = false,
-  enabled = true
+  enabled = true,
+  priority = 0
 }: UseKeyboardShortcutsParams) {
   const { activeOwner, registerShortcuts } = useKeyboardShortcutsManager()
   const contextOwner = useContext(KeyboardOwnerContext)
@@ -273,6 +332,6 @@ export function useKeyboardShortcuts({
       return
     }
 
-    return registerShortcuts({ owner: resolvedOwner, shortcuts, global })
-  }, [owner, contextOwner, activeOwner, shortcuts, global, enabled, registerShortcuts])
+    return registerShortcuts({ owner: resolvedOwner, shortcuts, global, priority })
+  }, [owner, contextOwner, activeOwner, shortcuts, global, enabled, priority, registerShortcuts])
 }
