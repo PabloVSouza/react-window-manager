@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent
-} from 'react'
+import { useCallback, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { createHtmlPortalNode } from 'react-reverse-portal'
 import type {
   WindowCreateParams,
@@ -30,7 +24,11 @@ const defaultInitialStatus: WindowInitialStatus & { startPosition: WindowStartPo
 const MIN_WINDOW_WIDTH = 320
 const MIN_WINDOW_HEIGHT = 220
 
-const parseMeasure = (value: WindowMeasure | undefined, container: number, fallback: number): number => {
+const parseMeasure = (
+  value: WindowMeasure | undefined,
+  container: number,
+  fallback: number
+): number => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -73,9 +71,8 @@ const isHorizontallyCentered = (startPosition: WindowStartPosition): boolean =>
 const isVerticallyCentered = (startPosition: WindowStartPosition): boolean =>
   startPosition === 'centerLeft' || startPosition === 'center' || startPosition === 'centerRight'
 
-const hasStartPositionAnchor = (
-  positionAnchor: WindowPositionAnchor | undefined
-): boolean => positionAnchor === 'startPosition'
+const hasStartPositionAnchor = (positionAnchor: WindowPositionAnchor | undefined): boolean =>
+  positionAnchor === 'startPosition'
 
 const resolvePositionByStart = (
   startPosition: WindowStartPosition,
@@ -176,7 +173,11 @@ export function useWindowManagerStore(): WindowManagerStore {
             : window.windowStatus.width
         const configuredHeight =
           window.initialStatus.height !== undefined
-            ? parseMeasure(window.initialStatus.height, normalized.height, window.windowStatus.height)
+            ? parseMeasure(
+                window.initialStatus.height,
+                normalized.height,
+                window.windowStatus.height
+              )
             : window.windowStatus.height
 
         const targetWidth = window.autoSize.width
@@ -243,10 +244,7 @@ export function useWindowManagerStore(): WindowManagerStore {
         }
 
         const outOfBounds =
-          left < 0 ||
-          top < 0 ||
-          left + width > normalized.width ||
-          top + height > normalized.height
+          left < 0 || top < 0 || left + width > normalized.width || top + height > normalized.height
 
         if (!outOfBounds) {
           let nextLeft = left
@@ -616,13 +614,21 @@ export function useWindowManagerStore(): WindowManagerStore {
           let nextLeft = window.windowStatus.left
           let nextTop = window.windowStatus.top
 
-          if (!window.manualPosition && window.initialStatus.left === undefined && window.autoSize.width) {
+          if (
+            !window.manualPosition &&
+            window.initialStatus.left === undefined &&
+            window.autoSize.width
+          ) {
             if (isHorizontallyCentered(startPosition)) {
               nextLeft = nextLeft - (nextWidth - window.windowStatus.width) / 2
             }
           }
 
-          if (!window.manualPosition && window.initialStatus.top === undefined && window.autoSize.height) {
+          if (
+            !window.manualPosition &&
+            window.initialStatus.top === undefined &&
+            window.autoSize.height
+          ) {
             if (isVerticallyCentered(startPosition)) {
               nextTop = nextTop - (nextHeight - window.windowStatus.height) / 2
             }
@@ -732,7 +738,11 @@ export function useWindowManagerStore(): WindowManagerStore {
               bounds.maxWidth
             )
             const height = clamp(
-              parseMeasure(nextInitialStatus.height, containerSize.height, window.windowStatus.height),
+              parseMeasure(
+                nextInitialStatus.height,
+                containerSize.height,
+                window.windowStatus.height
+              ),
               bounds.minHeight,
               bounds.maxHeight
             )
@@ -907,7 +917,9 @@ export function useWindowManagerStore(): WindowManagerStore {
   )
 
   const mouseCapture = useCallback(
-    (event: { movementX: number; movementY: number } | ReactMouseEvent<HTMLDivElement, MouseEvent>) => {
+    (
+      event: { movementX: number; movementY: number } | ReactMouseEvent<HTMLDivElement, MouseEvent>
+    ) => {
       const { movementX, movementY } = event
 
       if (!movementX && !movementY) {
@@ -946,13 +958,20 @@ export function useWindowManagerStore(): WindowManagerStore {
           }
 
           if (resizingWindow && window.id === resizingWindow.id) {
-            const maxWidth = Math.max(MIN_WINDOW_WIDTH, containerSize.width - window.windowStatus.left)
+            const maxWidth = Math.max(
+              MIN_WINDOW_WIDTH,
+              containerSize.width - window.windowStatus.left
+            )
             const maxHeight = Math.max(
               MIN_WINDOW_HEIGHT,
               containerSize.height - window.windowStatus.top
             )
 
-            const nextWidth = clamp(window.windowStatus.width + movementX, MIN_WINDOW_WIDTH, maxWidth)
+            const nextWidth = clamp(
+              window.windowStatus.width + movementX,
+              MIN_WINDOW_WIDTH,
+              maxWidth
+            )
             const nextHeight = clamp(
               window.windowStatus.height + movementY,
               MIN_WINDOW_HEIGHT,
@@ -963,10 +982,10 @@ export function useWindowManagerStore(): WindowManagerStore {
               ...window,
               windowStatus: {
                 ...window.windowStatus,
-            width: nextWidth,
-            height: nextHeight
-          }
-        }
+                width: nextWidth,
+                height: nextHeight
+              }
+            }
           }
 
           return window

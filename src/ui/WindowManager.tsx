@@ -96,16 +96,6 @@ export function WindowManager() {
 
   return (
     <div ref={containerRef} className="pointer-events-none fixed inset-0 z-[100]">
-      {windows.map((window) => (
-        <InPortal key={`portal-${window.id}`} node={window.portalNode}>
-          <KeyboardOwnerProvider owner={window.id}>
-            <div className="h-full w-full pointer-events-auto">
-              {window.content}
-            </div>
-          </KeyboardOwnerProvider>
-        </InPortal>
-      ))}
-
       {activeWindowLayers.map(({ window, backdropZIndex, windowZIndex }) => (
         <div key={window.id} className="contents">
           {window.overlay && backdropZIndex !== null && (
@@ -124,6 +114,17 @@ export function WindowManager() {
       ))}
 
       {!!minimizedWindows.length && <MinimizedBar windows={minimizedWindows} />}
+
+      {/* After the frames: React mounts siblings in order, so each OutPortal has already put the
+          window's node into the document when its content mounts, and `autoFocus` works (a node
+          outside the document cannot take focus). */}
+      {windows.map((window) => (
+        <InPortal key={`portal-${window.id}`} node={window.portalNode}>
+          <KeyboardOwnerProvider owner={window.id}>
+            <div className="h-full w-full pointer-events-auto">{window.content}</div>
+          </KeyboardOwnerProvider>
+        </InPortal>
+      ))}
     </div>
   )
 }

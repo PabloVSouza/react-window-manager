@@ -53,7 +53,9 @@ function generateWindowId(component: string, unique?: boolean): string {
   return `${component}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
 }
 
-export function useOpenWindow<TRegistry extends WindowRegistry = WindowRegistry>(registry?: TRegistry) {
+export function useOpenWindow<TRegistry extends WindowRegistry = WindowRegistry>(
+  registry?: TRegistry
+) {
   const { openWindow, closeWindow } = useWindowManager()
   const registryFromProvider = useWindowRegistry()
   const resolvedRegistry = (registry || registryFromProvider) as TRegistry | null

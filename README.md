@@ -10,7 +10,7 @@ Window manager for React apps with:
 
 ## Version
 
-Current stable version: `0.7.0`
+Current stable version: `0.8.0`
 
 ## Installation
 
@@ -176,6 +176,12 @@ openWindow({
 })
 ```
 
+Focus:
+
+- Window content mounts after its frame is in the document, so `autoFocus` works.
+- Each window remembers the element last focused inside it and restores it when the content is
+  moved back into a frame (restoring a minimized window, StrictMode remounts).
+
 Position anchors:
 
 - `initialStatus.positionAnchor: 'none'` (default): free position after open.
@@ -214,6 +220,24 @@ export function ReaderWindow({ windowId }: { windowId: string }) {
 
   return <div>Reader content</div>
 }
+```
+
+While the user is typing in a field (input, textarea, select, combobox, contenteditable), the
+field keeps the keys it uses: plain-key shortcuts (letters, Enter, Delete, arrows...) do not fire.
+Shortcuts with Ctrl/Alt/Meta, function keys (F1-F24) and Escape still do. Opt a shortcut in with
+`allowInEditable`:
+
+```tsx
+useKeyboardShortcuts({
+  shortcuts: [{ key: 'ArrowDown', allowInEditable: true, handler: () => moveToNextRow() }]
+})
+```
+
+An element that handles some keys itself declares them with `data-keys`, and shortcuts leave those
+keys to it while it (or anything inside it) has focus:
+
+```tsx
+<ProductPicker data-keys="F5 Enter" />
 ```
 
 Global shortcuts:

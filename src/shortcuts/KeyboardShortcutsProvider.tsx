@@ -20,6 +20,12 @@ export type KeyboardShortcut = {
   preventDefault?: boolean
   stopPropagation?: boolean
   enabled?: boolean
+  /**
+   * Fire even while the user is typing in a field (input, textarea, select, combobox,
+   * contenteditable). By default a field keeps the keys it uses itself; shortcuts with
+   * Ctrl/Alt/Meta, function keys (F1-F24) and Escape still fire there.
+   */
+  allowInEditable?: boolean
   handler: (event: KeyboardEvent) => void | boolean
 }
 
@@ -75,6 +81,53 @@ function matchesShortcut(shortcut: KeyboardShortcut, event: KeyboardEvent): bool
   return true
 }
 
+const EDITABLE_SELECTOR =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="combobox"], [role="textbox"], [role="spinbutton"]'
+
+const NON_EDITABLE_INPUT_TYPES = new Set([
+  'button',
+  'checkbox',
+  'color',
+  'file',
+  'image',
+  'radio',
+  'range',
+  'reset',
+  'submit'
+])
+
+function editableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false
+  }
+
+  const editable = target.closest(EDITABLE_SELECTOR)
+
+  if (!editable) {
+    return false
+  }
+
+  return !(editable instanceof HTMLInputElement && NON_EDITABLE_INPUT_TYPES.has(editable.type))
+}
+
+/** Keys the focused element (or an ancestor) handles itself: `data-keys="Enter ArrowDown"`. */
+function ownKeys(target: EventTarget | null): string[] {
+  if (!(target instanceof Element)) {
+    return []
+  }
+
+  return target.closest('[data-keys]')?.getAttribute('data-keys')?.split(/\s+/) ?? []
+}
+
+function firesWhileEditing(shortcut: KeyboardShortcut): boolean {
+  if (shortcut.allowInEditable || shortcut.ctrl || shortcut.alt || shortcut.meta) {
+    return true
+  }
+
+  const key = shortcut.key ?? shortcut.code ?? ''
+  return key === 'Escape' || /^F([1-9]|1[0-9]|2[0-4])$/.test(key)
+}
+
 export function KeyboardShortcutsProvider({ children }: { children: ReactNode }) {
   const { windows } = useWindowManager()
   const [manualOwner, setManualOwner] = useState<string | null>(null)
@@ -109,10 +162,13 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (ownKeys(event.target).includes(event.key)) {
+        return
+      }
+
+      const editing = editableTarget(event.target)
       const globalShortcuts = Array.from(globalShortcutsRef.current.values()).flat()
-      const scopedShortcuts = activeOwner
-        ? scopedShortcutsRef.current.get(activeOwner) || []
-        : []
+      const scopedShortcuts = activeOwner ? scopedShortcutsRef.current.get(activeOwner) || [] : []
 
       const listeners = [...globalShortcuts, ...scopedShortcuts]
 
@@ -120,6 +176,10 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
         const shortcut = listeners[index]
 
         if (!matchesShortcut(shortcut, event)) {
+          continue
+        }
+
+        if (editing && !firesWhileEditing(shortcut)) {
           continue
         }
 
@@ -171,13 +231,7 @@ export function useKeyboardShortcutsManager() {
   return context
 }
 
-export function KeyboardOwnerProvider({
-  owner,
-  children
-}: {
-  owner: string
-  children: ReactNode
-}) {
+export function KeyboardOwnerProvider({ owner, children }: { owner: string; children: ReactNode }) {
   return <KeyboardOwnerContext.Provider value={owner}>{children}</KeyboardOwnerContext.Provider>
 }
 

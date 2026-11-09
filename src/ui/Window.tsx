@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { cn } from '../internal/cn'
 import type { WindowInstance } from '../store/types'
 import { useWindowManager } from '../WindowSystemProvider'
@@ -18,6 +18,9 @@ const INTERACTIVE_TARGET_SELECTOR =
 function shouldSkipFocusCapture(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(INTERACTIVE_TARGET_SELECTOR) !== null
 }
+
+/** The element last focused inside each window's portal node; outlives the frame (minimize). */
+const lastFocusByContent = new WeakMap<HTMLElement, HTMLElement>()
 
 export function Window({ window, zIndex, children }: WindowProps) {
   const {
@@ -45,6 +48,38 @@ export function Window({ window, zIndex, children }: WindowProps) {
   } = window
   const sectionRef = useRef<HTMLElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
+
+  // Keep the window's cursor. Its content lives in a portal node that is moved into this frame on
+  // mount (twice under StrictMode) and again when the window is restored, and moving a node drops
+  // the focus of the field inside it, so `autoFocus` and the user's cursor would be lost. A layout
+  // effect, so it listens before the content (mounted after the frames) takes the focus.
+  useLayoutEffect(() => {
+    const section = sectionRef.current
+    const content = window.portalNode.element
+    if (!section) {
+      return
+    }
+
+    const remember = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement && content.contains(event.target)) {
+        lastFocusByContent.set(content, event.target)
+      }
+    }
+    section.addEventListener('focusin', remember)
+
+    const restore = globalThis.window.requestAnimationFrame(() => {
+      const last = lastFocusByContent.get(content)
+      const active = document.activeElement
+      if (last?.isConnected && section.contains(last) && (!active || active === document.body)) {
+        last.focus({ preventScroll: true })
+      }
+    })
+
+    return () => {
+      section.removeEventListener('focusin', remember)
+      globalThis.window.cancelAnimationFrame(restore)
+    }
+  }, [window.portalNode])
 
   useEffect(() => {
     const sectionElement = sectionRef.current
@@ -138,7 +173,9 @@ export function Window({ window, zIndex, children }: WindowProps) {
     >
       {titleBar && (
         <header
-          className={cn('relative flex h-10 shrink-0 items-center border-b border-border/70 bg-muted/70 px-2')}
+          className={cn(
+            'relative flex h-10 shrink-0 items-center border-b border-border/70 bg-muted/70 px-2'
+          )}
           onMouseDown={(event) => {
             if (!movable || event.button !== 0) {
               return
@@ -165,7 +202,10 @@ export function Window({ window, zIndex, children }: WindowProps) {
             )}
 
             {maximizable && (
-              <IconButton className="h-7 w-7" onClick={() => setWindowMaximized(id, !windowStatus.isMaximized)}>
+              <IconButton
+                className="h-7 w-7"
+                onClick={() => setWindowMaximized(id, !windowStatus.isMaximized)}
+              >
                 <SquareIcon className="size-3.5" />
               </IconButton>
             )}
@@ -195,11 +235,7 @@ export function Window({ window, zIndex, children }: WindowProps) {
           )}
 
           {closeable && (
-            <IconButton
-              variant="destructive"
-              className="h-7 w-7"
-              onClick={() => closeWindow(id)}
-            >
+            <IconButton variant="destructive" className="h-7 w-7" onClick={() => closeWindow(id)}>
               <CloseIcon className="size-4" />
             </IconButton>
           )}
