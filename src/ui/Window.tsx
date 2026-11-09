@@ -259,8 +259,7 @@ export function Window({ window, zIndex, children }: WindowProps) {
         <div className="absolute right-2 top-2 z-50 flex items-center gap-1">
           {minimizable && (
             <IconButton
-              variant="secondary"
-              className="h-7 w-7"
+              className="h-7 w-7 text-muted-foreground"
               onClick={() => setWindowMinimized(id, true)}
             >
               <MinusIcon className="size-4" />
@@ -268,7 +267,10 @@ export function Window({ window, zIndex, children }: WindowProps) {
           )}
 
           {closeable && (
-            <IconButton variant="destructive" className="h-7 w-7" onClick={() => closeWindow(id)}>
+            <IconButton
+              className="h-7 w-7 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+              onClick={() => closeWindow(id)}
+            >
               <CloseIcon className="size-4" />
             </IconButton>
           )}

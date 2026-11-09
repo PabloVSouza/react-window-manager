@@ -10,7 +10,7 @@ Window manager for React apps with:
 
 ## Version
 
-Current stable version: `0.9.1`
+Current stable version: `0.9.2`
 
 ## Installation
 
